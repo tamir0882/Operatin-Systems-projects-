@@ -19,4 +19,4 @@ int count_fire(const char* forest)
 	}
 	return burnt_trees;
 }
-//flotz
+
