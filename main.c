@@ -40,8 +40,10 @@ int main(int argc, const char* argv[])
 	int cur_max = (forest_size + 1) * 2;
 
 	char* line = (char*)malloc(sizeof(char) * cur_max);
-	line[cur_max - 1] = '\0';
 	char* forest = (char*)malloc(sizeof(char) * cur_max);
+	char* tmp;
+
+	int line_size = cur_max;
 	if (NULL == line || NULL == forest)
 	{
 		printf("FATAL ERROR: memory alloaction failed. ABORT");
@@ -50,27 +52,39 @@ int main(int argc, const char* argv[])
 
 	while (!feof(p_file))
 	{
-		fgets(line, cur_max, p_file);
+		fgets(line, line_size, p_file);
+		rsize_t strmax = sizeof line;
 		char* token;
-		token = strtok(line, ",");
+		char* next_token;
+		token = strtok_s(line, &strmax, ",", &next_token);
 		while (token != NULL)
 		{
-			if (strlen(forest) >= cur_max - 1)
+			if (NULL != forest)
 			{
-				cur_max *= 2;
-				forest = realloc(forest, cur_max);
-				if (NULL == forest)
+				if (strlen(forest) >= cur_max - 1)
 				{
-					printf("memory reallocation failed. ABORT");
-					return -1;
+					cur_max *= 2;
+					tmp = realloc(forest, cur_max);
+					if (NULL != tmp)
+					{
+						forest = tmp;
+					}
+					else
+					{
+						printf("memory allocation faliure");
+						return -1;
+					}
 				}
 			}
+			else
+				return -1;
+			
 
 			/*create string of letters defining forest*/
 			strcat(forest, token);
 
 			/* walk through other tokens */
-			token = strtok(NULL, ",");
+			token = strtok_s(NULL, &strmax, ",", &next_token);
 		}
 	}
 	/*free space allocated for string line*/
@@ -78,18 +92,18 @@ int main(int argc, const char* argv[])
 	fclose(argv[1]);
 
 	/*open outputfile for writing*/
-	FILE* out_file;
+	/*FILE* out_file;
 	err = fopen_s(&out_file, "output", "w");
 	if (err)
 	{
 		printf("could't open file. ABORT");
 		return -1;
 	}
-	fputs(forest, out_file);
+	fputs(forest, out_file);*/
 	free(forest);
 
 	//close files
-	fclose(out_file);
+	//fclose(out_file);
 	
 	return(0);
 }
