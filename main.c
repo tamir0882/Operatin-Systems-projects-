@@ -55,6 +55,7 @@ int main(int argc, char** argv)
 	}
 
 	int number_of_lines = 0;
+
 	HANDLE h_input_file = open_file_and_count_lines(argv[INPUT_FILE_PATH_POS], &number_of_lines);
 
 	if (NULL == h_input_file)
@@ -92,26 +93,24 @@ int main(int argc, char** argv)
 	
 	if (NULL == h_initiation_semaphore)
 	{
-		printf("SEMAPHORE ERROR - CreateSemaphore failed. ABORT.\n");
+		printf("SEMAPHORE ERROR - CreateSemaphore failed. attempting to close input file.\n");
 		free(array_of_thread_data);
+		if (0 == CloseHandle(h_input_file))
+		{
+			printf("FILE ERROR - couldn't close file. ABORT.\n");
+			return FAILURE;
+		}
+		printf("file successfully closed.\n"
+			"program shutting down.\n");
 		return FAILURE;
 	}
 
-	HANDLE h_mutex = NULL;
-	h_mutex = CreateMutexA(NULL, FALSE, NULL);
-
-	if (NULL == h_mutex)
-	{
-		printf("CreateMutex error: %d\n", GetLastError());
-		free(array_of_thread_data);
-		return FAILURE;
-	}
 
 	int lines_per_thread = (int)(number_of_lines / number_of_threads);
 	int residual = number_of_lines % number_of_threads;
 
-	set_same_data(array_of_thread_data, number_of_threads, number_of_lines, argv[INPUT_FILE_PATH_POS],
-		OUTPUT_FILE_NAME, mode, key, h_initiation_semaphore, h_mutex);
+	set_identical_data(array_of_thread_data, number_of_threads, number_of_lines, argv[INPUT_FILE_PATH_POS],
+		OUTPUT_FILE_NAME, mode, key, h_initiation_semaphore);
 
 	if (FAILURE == set_indexes(h_input_file, array_of_thread_data, number_of_threads, lines_per_thread, residual))
 	{
@@ -133,29 +132,49 @@ int main(int argc, char** argv)
 		return FAILURE;
 	}
 
+	HANDLE h_output_file = create_file_for_write(OUTPUT_FILE_NAME);
+	if (NULL == h_output_file)
+	{
+		printf("FILE ERROR - create_file_for_write failed.\n"
+		"attemptinf to close semaphore handle.\n");
+		free(array_of_thread_data);
+		if (0 == CloseHandle(h_initiation_semaphore))
+		{
+			printf("SEMAPHORE ERROR - couldn't close semaphore handle. ABORT.\n");
+			return FAILURE;
+		}
+		printf("semaphore handles successfully closed.\n");
+		return FAILURE;
+	}
+
 
 	for (int i = 0; i < number_of_threads; i++)
 	{
 		p_thread_handles[i] = create_thread_simple(Thread, &p_thread_ids[i], &array_of_thread_data[i]);
-		
 		if (NULL == p_thread_handles[i])
 		{
 			printf("THREAD ERROR - create_thread_simple returned NULL pointer. ABORT.\n");
-			free(array_of_thread_data);;
-			return FAILURE;
-		}
-
-		if (0 == GetExitCodeThread(p_thread_handles[i], &exit_code))
-		{
-			printf("THREAD ERROR - GetExitCodeThread failed. ABORT.\n");
 			free(array_of_thread_data);
-			return FAILURE;
-		}
-
-		if (exit_code == FAILURE)
-		{
-			printf("THREAD ERROR - thread operation failed\n");
-			free(array_of_thread_data);
+			if (0 == CloseHandle(h_initiation_semaphore))
+			{
+				printf("SEMAPHORE ERROR - couldn't close semaphore handle.\n"
+					"attempting to close output file handle.\n");
+				if (0 == CloseHandle(h_output_file))
+				{
+					printf("FILE ERROR - couldn't close file handle. ABORT.\n");
+					return FAILURE;
+				}
+				printf("handle closed successfully. shuting down.\n");
+				return FAILURE;
+			}
+			printf("semaphore handles successfully closed.\n"
+			"attempting to close output file handle.\n");
+			if (0 == CloseHandle(h_output_file))
+			{
+				printf("FILE ERROR - couldn't close file handle. ABORT.\n");
+				return FAILURE;
+			}
+			printf("handle closed successfully. shuting down.\n");
 			return FAILURE;
 		}
 	}
@@ -176,34 +195,63 @@ int main(int argc, char** argv)
 		return FAILURE;
 	}
 
+
+	free(array_of_thread_data);
+
+
+
 	for (int i = 0; i < number_of_threads; i++)
 	{
+		if (0 == GetExitCodeThread(p_thread_handles[i], &exit_code))
+		{
+			printf("THREAD ERROR - GetExitCodeThread failed. ABORT.\n");
+			for (int j = i; j < number_of_threads; j++)
+			{
+				if (0 == CloseHandle(p_thread_handles[j]))
+				{
+					printf("THREAD ERROR - couldn't close thread handle. ABORT.\n");
+					return FAILURE;
+				}
+			}
+			return FAILURE;
+		}
+
+		if (exit_code == FAILURE)
+		{
+			printf("THREAD ERROR - thread operation failed.\n");
+			for (int j = i; j < number_of_threads; j++)
+			{
+				if (0 == CloseHandle(p_thread_handles[j]))
+				{
+					printf("THREAD ERROR - couldn't close thread handle. ABORT.\n");
+					return FAILURE;
+				}
+			}
+			return FAILURE;
+		}
+
 		if (0 == CloseHandle(p_thread_handles[i]))
 		{
 			printf("THREAD ERROR - couldn't close thread handle. ABORT.\n");
-			free(array_of_thread_data);
 			return FAILURE;
 		}
 	}
 
-	if (0 == CloseHandle(h_mutex))
-	{
-		printf("MUTEX ERROR - couldn't close mutex handle. ABORT.\n");
-		free(array_of_thread_data);
-		return FAILURE;
-	}
 	
 	if (0 == CloseHandle(h_initiation_semaphore))
 	{
 		printf("SEMAPHORE ERROR - couldn't close semaphore handle. ABORT.\n");
-		free(array_of_thread_data);
+		return FAILURE;
+	}
+
+	if (0 == CloseHandle(h_output_file))
+	{
+		printf("FILE ERROR - couldn't close file handle. ABORT.\n");
 		return FAILURE;
 	}
 
 
-	free(array_of_thread_data);
-
-	printf("Great Success!\n");
+	printf("\nGreat Success!\n");
 
 	return SUCCESS;
 }

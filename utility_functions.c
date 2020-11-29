@@ -1,19 +1,23 @@
+
+
 #include <stdio.h>
 #include <string.h>
 #include <windows.h>
 #include <errno.h>
 #include "HardCodedData.h"
 
-/*
-char* buffer = "Hello World!\n";
-DWORD bytes_to_write = 13;
-LPDWORD bytes_written;
 
-WriteFile(h_file, buffer, bytes_to_write, &bytes_written, NULL);
-return h_file;
+
+
+/* HANDLE create_file_for_read: a wrapper for CreateFileA.
+
+* Parameters:
+* LPCTR file_name - path for a file to open for reading.
+
+* Return value:
+* on success - a handle to a file with GENERIC_READ permission
+* on failure - NULL
 */
-
-
 HANDLE create_file_for_read(LPCSTR file_name)
 {
 	if (NULL == file_name)
@@ -32,7 +36,15 @@ HANDLE create_file_for_read(LPCSTR file_name)
 	return h_file;
 }
 
+/* HANDLE create_file_for_write: a wrapper for CreateFileA.
 
+* Parameters:
+* LPCTR file_name - path for a file to create for writing.
+
+* Return value:
+* on success - a handle to a file with GENERIC_WRITE permission
+* on failure - NULL
+*/
 HANDLE create_file_for_write(LPCSTR file_name)
 {
 	if (NULL == file_name)
@@ -52,6 +64,20 @@ HANDLE create_file_for_write(LPCSTR file_name)
 }
 
 
+/* HANDLE open_file_and_count_lines: 
+
+* Parameters:
+* LPCTR file_name - path for a file to create for reading.
+* int* count - pointer to an integer that saves the number of lines in the file.
+
+* Return Value:
+* on success - a handle to a file with GENERIC_READ permission
+* on failure - NULL
+ 
+* note:
+* this function uses SetFilePointer to reset the file pointer back 
+	to the beginning of the file for later use.
+*/
 HANDLE open_file_and_count_lines(LPCSTR file_name, int* count)
 {
 	*count = MIN_LINES_NUMBER;
@@ -86,9 +112,28 @@ HANDLE open_file_and_count_lines(LPCSTR file_name, int* count)
 	return h_file;
 }
 
+/* void set_identical_data:
 
-void set_same_data(Data* array_of_thread_data, int number_of_threads, int number_of_lines, char* input_file_name,
-	char* output_file_name, char mode, int key, HANDLE h_semaphore, HANDLE h_mutex)
+* Parameters:
+* Data* array_of_thread_data - pointer to an array of struct Data.
+* int number_of_threads - integer that is the number of threads to be created.
+* int number_of_lines - number of lines in input file.
+* char* input_file_name - path to an input file to read from.
+* char* output_file_name - path to an output file to write to.
+* char mode - either d or e. represents mode of operation - decrypting or encrypting.
+* int key - key of decryption / encryption.
+* HANDLE h_semaphore - handle to a semaphore that would be used to make all threads start at the same time.
+
+* Return Value: 
+* does not return any value.
+
+* note:
+* the field is_last is the only field in this function which differs 
+	between the threads. it represents the thread that operate on the last 
+	line in the file.
+*/
+void set_identical_data(Data* array_of_thread_data, int number_of_threads, int number_of_lines, char* input_file_name,
+	char* output_file_name, char mode, int key, HANDLE h_semaphore)
 {
 	for (int i = 0; i < number_of_threads; i++)
 	{
@@ -98,7 +143,6 @@ void set_same_data(Data* array_of_thread_data, int number_of_threads, int number
 		array_of_thread_data[i].key = key;
 		array_of_thread_data[i].is_last = FALSE;
 		array_of_thread_data[i].semaphore = h_semaphore;
-		array_of_thread_data[i].mutex = h_mutex;
 	}
 	if (number_of_threads > number_of_lines)
 	{
@@ -110,7 +154,21 @@ void set_same_data(Data* array_of_thread_data, int number_of_threads, int number
 	}
 }
 
+/* int set_indexes:
+* Description - This function sets the start and end positions in the file for each thread. 
 
+* Parameters:
+* HANDLE h_file - handle to a file with GENERIC_READ permission.
+* Data* array_of_thread_data - pointer to an array of struct Data.
+* int number_of_threads - integer that is the number of threads to be created.
+* int lines_per_thread - number of lines from the file for each thread to operate on.
+* int residual - in case where (number of lines)/(number of threads) is not a whole number
+	this variable represents how many threads should be given an additional line to operate on.
+
+* Return Value:
+* on success - returns SUCCESS (integer value 0)
+* on failure - returns FAILURE (integer value -1)
+*/
 int set_indexes(HANDLE h_file, Data* array_of_thread_data, int number_of_threads, int lines_per_thread, int residual)
 {
 	array_of_thread_data[0].start_index = 0;
@@ -132,8 +190,19 @@ int set_indexes(HANDLE h_file, Data* array_of_thread_data, int number_of_threads
 	return SUCCESS;
 }
 
+/* int get_end_index:
+* Description - This function finds the end positions in the file for a specific thread.
 
-int get_end_index(HANDLE h_file, int lines_for_thread, int offset)
+* Parameters:
+* HANDLE h_file - handle to a file with GENERIC_READ permission.
+* int lines_for_thread - number of lines from the file for each thread to operate on.
+* int start_index - the start position of the thread.
+
+* Return Value:
+* on success - returns the end position of a thread (a positive integer).
+* on failure - returns FAILURE (integer value -1),
+*/
+int get_end_index(HANDLE h_file, int lines_for_thread, int start_index)
 {
 
 	int remaining_lines = lines_for_thread;
@@ -147,7 +216,7 @@ int get_end_index(HANDLE h_file, int lines_for_thread, int offset)
 		ret_read = ReadFile(h_file, &buffer, MAX_BUFFER_SIZE, &bytes_read, NULL);
 		if (FALSE == ret_read)
 		{
-			printf("FILE ERROR - ReadFile failed. ABORT\n");
+			printf("FILE ERROR - ReadFile failed.\n");
 			return FAILURE;
 		}
 		if (0 == bytes_read)
@@ -160,11 +229,22 @@ int get_end_index(HANDLE h_file, int lines_for_thread, int offset)
 			remaining_lines--;
 	} while (remaining_lines > 0);
 
-	return count + offset;
+	return count + start_index;
 }
 
+/* char operate_on_character_help:
+* Description - helper for operate_on_character.
 
-char operate_on_character_help(char lower_end, int ch_read, int key, int base)
+* Parameters:
+* char lower_end - lower end of range of relevant characters - either 'a', 'A' or '0'.
+* char ch_read - the character that was recently read by ReadFile.
+* int key - key for decryption / encryption.
+* int base - base of ch_read - either DECIMAL_BASE(10) or LETTER_BASE(26).
+
+* Return Value:
+* returns the decrypted / encrypted characte.
+*/
+char operate_on_character_help(char lower_end, char ch_read, int key, int base)
 {
 	int temp = ch_read - key - lower_end;
 	if (temp < 0)
@@ -173,6 +253,7 @@ char operate_on_character_help(char lower_end, int ch_read, int key, int base)
 	}
 	return lower_end + temp;
 }
+
 
 int set_key(int key, int base)
 {
@@ -184,6 +265,17 @@ int set_key(int key, int base)
 	return res;
 }
 
+/* char operate_on_character:
+* Description - helper for operate_on_character.
+
+* Parameters:
+* char ch_read - the character that was recently read by ReadFile.
+* int key - key for decryption / encryption.
+* int base - base of ch_read - either DECIMAL_BASE(10) or LETTER_BASE(26).
+
+* Return Value:
+* returns the decrypted / encrypted characte.
+*/
 char operate_on_character(char ch_read, int key, char mode)
 {
 	if (mode == 'e') key = -key;

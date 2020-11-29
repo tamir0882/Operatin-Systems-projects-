@@ -8,31 +8,18 @@
 
 
 
-
-
-
-
 DWORD WINAPI Thread(LPVOID lpParam)
 {
 	Data* p_thread_data = (Data*) lpParam;
 
-	DWORD wait_code_semaphore, wait_code_mutex;
+	DWORD wait_code_semaphore;
 
 	wait_code_semaphore = WaitForSingleObject(p_thread_data->semaphore, WAIT_TIME);
 
 	if (wait_code_semaphore != WAIT_OBJECT_0)
 	{
 		printf("SEMAPHORE ERROR - wait code is not WAIT_OBJECT_0.\n ABORT.\n");
-		free(p_thread_data);
-		exit(FAILURE);
-	}
-
-	wait_code_mutex = WaitForSingleObject(p_thread_data->mutex, WAIT_TIME);
-	if (wait_code_mutex != WAIT_OBJECT_0)
-	{
-		printf("mutex failure : % d.\n", GetLastError());
-		free(p_thread_data);
-		exit(FAILURE);
+		return FAILURE;
 	}
 
 
@@ -40,32 +27,28 @@ DWORD WINAPI Thread(LPVOID lpParam)
 	if (NULL == h_input_file)
 	{
 		printf("FILE ERROR - create_file_for_read returned NULL pointer");
-		free(p_thread_data);
-		exit(FAILURE);
+		return FAILURE;
 	}
 
-	HANDLE h_output_file = create_file_for_write(p_thread_data->output_file_name);
-	if (NULL == h_output_file)
+	HANDLE h_output_file = CreateFileA(p_thread_data->output_file_name, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL, NULL);
+	if (ERROR_FILE_NOT_FOUND == GetLastError() || INVALID_HANDLE_VALUE == h_output_file)
 	{
-		printf("FILE ERROR - create_file_for_read returned NULL pointer");
-		free(p_thread_data);
-		exit(FAILURE);
+		printf("ERROR - could not open file.\n");
+		return FAILURE;
 	}
 	//---------------------------------------------************************
-
 
 	if (INVALID_SET_FILE_POINTER == SetFilePointer(h_input_file, p_thread_data->start_index, NULL, FILE_BEGIN))
 	{
 		printf("SetFilePointer failed. ABORT");
-		free(p_thread_data);
-		exit(FAILURE);
+		return FAILURE;
 	}
 
 	if (INVALID_SET_FILE_POINTER == SetFilePointer(h_output_file, p_thread_data->start_index, NULL, FILE_BEGIN))
 	{
 		printf("SetFilePointer failed. ABORT");
-		free(p_thread_data);
-		exit(FAILURE);
+		return FAILURE;
 	}
 	
 	char buffer_read = 0;
@@ -78,29 +61,14 @@ DWORD WINAPI Thread(LPVOID lpParam)
 	
 	int count = p_thread_data->start_index;
 	
-	if (0 == ReleaseMutex(p_thread_data->mutex))
-	{
-		printf("ReleaseMutex failed.\n");
-		free(p_thread_data);
-		exit(FAILURE);
-	}
 
 	do
 	{
-		wait_code_mutex = WaitForSingleObject(p_thread_data->mutex, WAIT_TIME);
-		if (wait_code_mutex != WAIT_OBJECT_0)
-		{
-			printf("mutex failure: %d.\n", GetLastError());
-			free(p_thread_data);
-			exit(FAILURE);
-		}
-
 		ret_read = ReadFile(h_input_file, &buffer_read, MAX_BUFFER_SIZE, &bytes_read, NULL);
 		if (FALSE == ret_read)
 		{
 			printf("FILE ERROR - ReadFile failed.\n");
-			free(p_thread_data);
-			exit(FAILURE);
+			return FAILURE;
 		}
 
 		count++;
@@ -112,33 +80,17 @@ DWORD WINAPI Thread(LPVOID lpParam)
 		if (FALSE == ret_write)
 		{
 			printf("FILE ERROR - WriteFile failed.\n");
-			free(p_thread_data);
-			exit(FAILURE);
-		}
-
-		if (0 == ReleaseMutex(p_thread_data->mutex))
-		{
-			printf("ReleaseMutex failed.\n");
-			free(p_thread_data);
-			exit(FAILURE);
+			return FAILURE;
 		}
 	} while (count <= p_thread_data->end_index);
 
-	wait_code_mutex = WaitForSingleObject(p_thread_data->mutex, WAIT_TIME);
-	if (wait_code_mutex != WAIT_OBJECT_0)
-	{
-		printf("mutex failure: %d.\n", GetLastError());
-		free(p_thread_data);
-		exit(FAILURE);
-	}
 
 	if (p_thread_data->is_last)
 	{
 		if (0 == SetEndOfFile(h_output_file))
 		{
 			printf("SetEndOfFile failed. ABORT.\n");
-			free(p_thread_data);
-			exit(FAILURE);
+			return FAILURE;
 		}
 	}
 
@@ -146,24 +98,16 @@ DWORD WINAPI Thread(LPVOID lpParam)
 	if (0 == CloseHandle(h_input_file))
 	{
 		printf("FILE ERROR - couldn't close input file. ABORT.\n");
-		free(p_thread_data);
-		exit(FAILURE);
+		return FAILURE;
 	}
 
 	if (0 == CloseHandle(h_output_file))
 	{
 		printf("FILE ERROR - couldn't close output file. ABORT.\n");
-		free(p_thread_data);
-		exit(FAILURE);
+		return FAILURE;
 	}
 
-	if (0 == ReleaseMutex(p_thread_data->mutex))
-	{
-		printf("ReleaseMutex failed.\n");
-		free(p_thread_data);
-		exit(FAILURE);
-	}
-
+	return SUCCESS;
 }
 
 

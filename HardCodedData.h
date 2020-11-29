@@ -38,7 +38,7 @@ typedef struct Data
 	int key;
 	char mode;
 	BOOL is_last;
-	HANDLE semaphore, mutex;
+	HANDLE semaphore;
 }Data;
 
 
