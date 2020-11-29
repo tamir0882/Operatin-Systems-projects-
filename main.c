@@ -78,42 +78,40 @@ int main(int argc, char** argv)
 		return FAILURE;
 	}
 
-	DWORD p_thread_ids[MAXIMUM_WAIT_OBJECTS];
+	DWORD p_thread_ids[MAXIMUM_WAIT_OBJECTS] = { 0 };
 	HANDLE p_thread_handles[MAXIMUM_WAIT_OBJECTS] = { 0 };
 
 	DWORD exit_code;
 	DWORD wait_code;
 
-	HANDLE semaphore_gun = NULL;
-	semaphore_gun = CreateSemaphoreA(NULL, // default sec. Attr.
+	HANDLE h_initiation_semaphore = NULL;
+	h_initiation_semaphore = CreateSemaphoreA(NULL, // default sec. Attr.
 		0, // initial count
 		number_of_threads, // max count
 		Thread); // no name)
 	
-	if (NULL == semaphore_gun)
+	if (NULL == h_initiation_semaphore)
 	{
 		printf("SEMAPHORE ERROR - CreateSemaphore failed. ABORT.\n");
 		free(array_of_thread_data);
 		return FAILURE;
 	}
 
+	HANDLE h_mutex = NULL;
+	h_mutex = CreateMutexA(NULL, FALSE, NULL);
 
-	HANDLE h_mutex = CreateMutex(
-		NULL,              // default security attributes
-		FALSE,             // initially not owned
-		NULL);             // unnamed mutex
-
-	if (h_mutex == NULL)
+	if (NULL == h_mutex)
 	{
 		printf("CreateMutex error: %d\n", GetLastError());
+		free(array_of_thread_data);
 		return FAILURE;
 	}
 
 	int lines_per_thread = (int)(number_of_lines / number_of_threads);
 	int residual = number_of_lines % number_of_threads;
 
-	set_same_data(array_of_thread_data, number_of_threads, number_of_lines, argv[INPUT_FILE_PATH_POS], 
-		OUTPUT_FILE_NAME, mode, key, semaphore_gun, h_mutex);
+	set_same_data(array_of_thread_data, number_of_threads, number_of_lines, argv[INPUT_FILE_PATH_POS],
+		OUTPUT_FILE_NAME, mode, key, h_initiation_semaphore, h_mutex);
 
 	if (FAILURE == set_indexes(h_input_file, array_of_thread_data, number_of_threads, lines_per_thread, residual))
 	{
@@ -162,7 +160,7 @@ int main(int argc, char** argv)
 		}
 	}
 
-	if (0 == ReleaseSemaphore(semaphore_gun, number_of_threads, NULL))
+	if (0 == ReleaseSemaphore(h_initiation_semaphore, number_of_threads, NULL))
 	{
 		printf("SEMAPHORE ERROR - RealeseSemaphore failed. ABORT.\n");
 		free(array_of_thread_data);
@@ -187,10 +185,25 @@ int main(int argc, char** argv)
 			return FAILURE;
 		}
 	}
+
+	if (0 == CloseHandle(h_mutex))
+	{
+		printf("MUTEX ERROR - couldn't close mutex handle. ABORT.\n");
+		free(array_of_thread_data);
+		return FAILURE;
+	}
 	
+	if (0 == CloseHandle(h_initiation_semaphore))
+	{
+		printf("SEMAPHORE ERROR - couldn't close semaphore handle. ABORT.\n");
+		free(array_of_thread_data);
+		return FAILURE;
+	}
+
+
 	free(array_of_thread_data);
 
-	printf("great success!\n");
+	printf("Great Success!\n");
 
 	return SUCCESS;
 }

@@ -15,12 +15,22 @@
 DWORD WINAPI Thread(LPVOID lpParam)
 {
 	Data* p_thread_data = (Data*) lpParam;
+
 	DWORD wait_code_semaphore, wait_code_mutex;
+
 	wait_code_semaphore = WaitForSingleObject(p_thread_data->semaphore, WAIT_TIME);
 
 	if (wait_code_semaphore != WAIT_OBJECT_0)
 	{
 		printf("SEMAPHORE ERROR - wait code is not WAIT_OBJECT_0.\n ABORT.\n");
+		free(p_thread_data);
+		exit(FAILURE);
+	}
+
+	wait_code_mutex = WaitForSingleObject(p_thread_data->mutex, WAIT_TIME);
+	if (wait_code_mutex != WAIT_OBJECT_0)
+	{
+		printf("mutex failure : % d.\n", GetLastError());
 		free(p_thread_data);
 		exit(FAILURE);
 	}
@@ -42,6 +52,7 @@ DWORD WINAPI Thread(LPVOID lpParam)
 		exit(FAILURE);
 	}
 	//---------------------------------------------************************
+
 
 	if (INVALID_SET_FILE_POINTER == SetFilePointer(h_input_file, p_thread_data->start_index, NULL, FILE_BEGIN))
 	{
@@ -67,19 +78,29 @@ DWORD WINAPI Thread(LPVOID lpParam)
 	
 	int count = p_thread_data->start_index;
 	
+	if (0 == ReleaseMutex(p_thread_data->mutex))
+	{
+		printf("ReleaseMutex failed.\n");
+		free(p_thread_data);
+		exit(FAILURE);
+	}
 
 	do
 	{
+		wait_code_mutex = WaitForSingleObject(p_thread_data->mutex, WAIT_TIME);
+		if (wait_code_mutex != WAIT_OBJECT_0)
+		{
+			printf("mutex failure: %d.\n", GetLastError());
+			free(p_thread_data);
+			exit(FAILURE);
+		}
+
 		ret_read = ReadFile(h_input_file, &buffer_read, MAX_BUFFER_SIZE, &bytes_read, NULL);
 		if (FALSE == ret_read)
 		{
 			printf("FILE ERROR - ReadFile failed.\n");
 			free(p_thread_data);
 			exit(FAILURE);
-		}
-		if (0 == bytes_read)
-		{
-			break; //reached end of file.
 		}
 
 		count++;
@@ -95,9 +116,22 @@ DWORD WINAPI Thread(LPVOID lpParam)
 			exit(FAILURE);
 		}
 
+		if (0 == ReleaseMutex(p_thread_data->mutex))
+		{
+			printf("ReleaseMutex failed.\n");
+			free(p_thread_data);
+			exit(FAILURE);
+		}
 	} while (count <= p_thread_data->end_index);
 
-	
+	wait_code_mutex = WaitForSingleObject(p_thread_data->mutex, WAIT_TIME);
+	if (wait_code_mutex != WAIT_OBJECT_0)
+	{
+		printf("mutex failure: %d.\n", GetLastError());
+		free(p_thread_data);
+		exit(FAILURE);
+	}
+
 	if (p_thread_data->is_last)
 	{
 		if (0 == SetEndOfFile(h_output_file))
@@ -119,6 +153,13 @@ DWORD WINAPI Thread(LPVOID lpParam)
 	if (0 == CloseHandle(h_output_file))
 	{
 		printf("FILE ERROR - couldn't close output file. ABORT.\n");
+		free(p_thread_data);
+		exit(FAILURE);
+	}
+
+	if (0 == ReleaseMutex(p_thread_data->mutex))
+	{
+		printf("ReleaseMutex failed.\n");
 		free(p_thread_data);
 		exit(FAILURE);
 	}

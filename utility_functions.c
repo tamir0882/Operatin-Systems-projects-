@@ -87,7 +87,7 @@ HANDLE open_file_and_count_lines(LPCSTR file_name, int* count)
 }
 
 
-void set_same_data(Data* array_of_thread_data,int number_of_threads, int number_of_lines, char* input_file_name, 
+void set_same_data(Data* array_of_thread_data, int number_of_threads, int number_of_lines, char* input_file_name,
 	char* output_file_name, char mode, int key, HANDLE h_semaphore, HANDLE h_mutex)
 {
 	for (int i = 0; i < number_of_threads; i++)
