@@ -1,7 +1,7 @@
 #ifndef HARD_CODED_DATA_H
 #define HARD_CODED_DATA_H
 
-#define MAX_BUFFER_SIZE 1
+#define BUFFER_SIZE_ONE 1
 
 
 #define FAILURE -1
@@ -9,10 +9,6 @@
 
 #define EXPECTED_ARGC 5
 
-#define READ "r"
-#define WRITE "w"
-
-#define OUTPUT_FILE_NAME "output.txt"
 
 #define INPUT_FILE_PATH_POS 1
 #define KEY_POS 2

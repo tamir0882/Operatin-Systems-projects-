@@ -14,11 +14,8 @@
 #include "Thread.h"
 
 
-
-
 int main(int argc, char** argv)
 {	
-
 	//check if command line parameters required are given.
 	if (argc != EXPECTED_ARGC)
 	{
@@ -26,7 +23,8 @@ int main(int argc, char** argv)
 			"program shutting down.\n", EXPECTED_ARGC);
 		return FAILURE;
 	}
-	//change key to be of type int and check if key is non zero integer. 
+
+	//change key to be of type int.
 	int key = (int)(strtol(argv[KEY_POS], NULL, DECIMAL_BASE));
 	if (key == 0)
 	{
@@ -37,7 +35,9 @@ int main(int argc, char** argv)
 			return FAILURE;
 		}
 	}
-	//change number_of_threads to be of type int and check if number_of_threads is a positive integer. 
+
+
+	//change number_of_threads to be of type int and check if number_of_threads is a positive integer.
 	int number_of_threads = (int)(strtol(argv[NUMBER_OF_THREADS_POS],NULL,DECIMAL_BASE));
 	if (0 >= number_of_threads)
 	{
@@ -45,6 +45,8 @@ int main(int argc, char** argv)
 			"program shutting down.\n");
 		return FAILURE;
 	}
+
+
 	//check if given mode is different than 'd' or 'e'.
 	char mode = argv[MODE_POS][MODE_SUB_POS];
 	if (mode != 'e' && mode != 'd')
@@ -54,19 +56,61 @@ int main(int argc, char** argv)
 		return FAILURE;
 	}
 
+
 	int number_of_lines = 0;
-	
+
+	char output_path[_MAX_PATH] = { 0 };
+	if (0 == snprintf(output_path, _MAX_PATH, "%s", argv[INPUT_FILE_PATH_POS]))
+	{
+		printf("snprintf failed.\n");
+		return FAILURE;
+	}
+	char* p_last_back_slash = strrchr(output_path, '\\');
+	if (NULL != p_last_back_slash)
+	{
+		*(p_last_back_slash + 1) = '\0';
+	}
+	else
+	{
+		snprintf(output_path, _MAX_PATH, "\0");
+	}
+
+	switch (mode)
+	{
+	case 'e':
+		if (0 == snprintf(output_path, _MAX_PATH, "%sencrypted.txt", output_path))
+		{
+			printf("snprintf failed.\n");
+			return FAILURE;
+		}
+		break;
+	case 'd':
+		if (0 == snprintf(output_path, _MAX_PATH, "%sdecrypted.txt", output_path))
+		{
+			printf("snprintf failed.\n");
+			return FAILURE;
+		}
+		break;
+	}
+
+
+
 	HANDLE h_input_file = open_file_and_count_lines(argv[INPUT_FILE_PATH_POS], &number_of_lines);
+	
 	//check if open_file_and_count_lines failed.
 	if (NULL == h_input_file)
 	{
 		printf("open_file_and_count_lines has failed. ABORT.\n");
 		return FAILURE;
 	}
+
+
+
+
+	Data* array_of_thread_data = (Data*)malloc(sizeof(Data) * number_of_threads);
 	
 	//check if memory allocation to array_of_thread_data failed because of various reasons. 
 	//if needed, deal with the input file.
-	Data* array_of_thread_data = (Data*)malloc(sizeof(Data) * number_of_threads);
 	if (NULL == array_of_thread_data)
 	{
 		printf("MEMORY ERROR - allocation failed. attempting to close input file.\n");
@@ -85,13 +129,14 @@ int main(int argc, char** argv)
 
 	DWORD exit_code;
 	DWORD wait_code;
-	
+
 	HANDLE h_initiation_semaphore = NULL;
 	h_initiation_semaphore = CreateSemaphoreA(NULL, // default sec. Attr.
 		0, // initial count
 		number_of_threads, // max count
 		Thread); // no name)
 	
+
 	//check if CreateSemaphoreA failed, and deal with the input file if needed.
 	if (NULL == h_initiation_semaphore)
 	{
@@ -112,8 +157,9 @@ int main(int argc, char** argv)
 	int residual = number_of_lines % number_of_threads;
 
 	set_identical_data(array_of_thread_data, number_of_threads, number_of_lines, argv[INPUT_FILE_PATH_POS],
-		OUTPUT_FILE_NAME, mode, key, h_initiation_semaphore);
-	
+		output_path, mode, key, h_initiation_semaphore);
+
+
 	//check if set indexes failed, and deal with the input file if needed.
 	if (FAILURE == set_indexes(h_input_file, array_of_thread_data, number_of_threads, lines_per_thread, residual))
 	{
@@ -127,7 +173,8 @@ int main(int argc, char** argv)
 		printf("file was close successfully. program shutting down.\n");
 		return FAILURE;
 	}
-	
+
+
 	//check if handle for input file was closed. 
 	if (0 == CloseHandle(h_input_file))
 	{
@@ -135,9 +182,9 @@ int main(int argc, char** argv)
 		free(array_of_thread_data);
 		return FAILURE;
 	}
-	
-	HANDLE h_output_file = create_file_for_write(OUTPUT_FILE_NAME);
-	
+
+	HANDLE h_output_file = create_file_for_write(output_path);
+
 	//check if open_file_and_count_lines failed, and deal with the output file if needed.
 	if (NULL == h_output_file)
 	{
@@ -153,6 +200,7 @@ int main(int argc, char** argv)
 		return FAILURE;
 	}
 
+
 	//check if all the threads can be created successfully. if not, report on error, free memory and deal with semaphore, and output file if needed.
 	//if an error was found close all handles.
 	for (int i = 0; i < number_of_threads; i++)
@@ -160,53 +208,83 @@ int main(int argc, char** argv)
 		p_thread_handles[i] = create_thread_simple(Thread, &p_thread_ids[i], &array_of_thread_data[i]);
 		if (NULL == p_thread_handles[i])
 		{
-			printf("THREAD ERROR - create_thread_simple returned NULL pointer. ABORT.\n");
+			printf("THREAD ERROR - create_thread_simple returned NULL pointer.\n");
 			free(array_of_thread_data);
 			if (0 == CloseHandle(h_initiation_semaphore))
 			{
 				printf("SEMAPHORE ERROR - couldn't close semaphore handle.\n"
 					"attempting to close output file handle.\n");
-				if (0 == CloseHandle(h_output_file))
-				{
-					printf("FILE ERROR - couldn't close file handle. ABORT.\n");
-					return FAILURE;
-				}
-				printf("handle closed successfully. shuting down.\n");
-				return FAILURE;
 			}
-			printf("semaphore handles successfully closed.\n"
-			"attempting to close output file handle.\n");
 			if (0 == CloseHandle(h_output_file))
 			{
-				printf("FILE ERROR - couldn't close file handle. ABORT.\n");
-				return FAILURE;
+				printf("FILE ERROR - couldn't close file handle.\n");
 			}
-			printf("handle closed successfully. shuting down.\n");
+			printf("shuting down.\n");
 			return FAILURE;
 		}
 	}
-	//check if the ReleaseSemaphore failed, and free memory if needed. 
+
+
+	//check if the ReleaseSemaphore failed.
 	if (0 == ReleaseSemaphore(h_initiation_semaphore, number_of_threads, NULL))
 	{
 		printf("SEMAPHORE ERROR - RealeseSemaphore failed. ABORT.\n");
 		free(array_of_thread_data);
+		if (0 == CloseHandle(h_initiation_semaphore))
+		{
+			printf("SEMAPHORE ERROR - couldn't close semaphore handle.\n"
+				"attempting to close output file handle.\n");
+		}
+		if (0 == CloseHandle(h_output_file))
+		{
+			printf("FILE ERROR - couldn't close file handle.\n");
+		}
+		printf("shuting down.\n");
 		return FAILURE;
 	}
 	
-	//check if the WaitForMultipleObjects failed, and free memory if needed.
+
 	wait_code = WaitForMultipleObjects(number_of_threads, p_thread_handles, TRUE, WAIT_TIME);
+
+	free(array_of_thread_data);
+	//check if the WaitForMultipleObjects failed.
 	if (WAIT_OBJECT_0 != wait_code)
 	{
 		printf("THREAD ERROR - Error when waiting.\n");
-		free(array_of_thread_data);
+		if (0 == CloseHandle(h_initiation_semaphore))
+		{
+			printf("SEMAPHORE ERROR - couldn't close semaphore handle.\n"
+				"attempting to close output file handle.\n");
+		}
+		if (0 == CloseHandle(h_output_file))
+		{
+			printf("FILE ERROR - couldn't close file handle.\n");
+		}
+		printf("shuting down.\n");
 		return FAILURE;
 	}
 
 
-	free(array_of_thread_data);
+
+	if (0 == CloseHandle(h_initiation_semaphore))
+	{
+		printf("SEMAPHORE ERROR - couldn't close semaphore handle. ABORT.\n");
+		if (0 == CloseHandle(h_output_file))
+		{
+			printf("FILE ERROR - couldn't close file handle. ABORT.\n");
+		}
+		return FAILURE;
+	}
+
+	if (0 == CloseHandle(h_output_file))
+	{
+		printf("FILE ERROR - couldn't close file handle. ABORT.\n");
+		return FAILURE;
+	}
 
 
-	//check if a thread has finished it's work successfully. if an error was found, report and close all handles.
+
+	//check exit code of threads and close their handles.
 	for (int i = 0; i < number_of_threads; i++)
 	{
 		if (0 == GetExitCodeThread(p_thread_handles[i], &exit_code))
@@ -217,7 +295,6 @@ int main(int argc, char** argv)
 				if (0 == CloseHandle(p_thread_handles[j]))
 				{
 					printf("THREAD ERROR - couldn't close thread handle. ABORT.\n");
-					return FAILURE;
 				}
 			}
 			return FAILURE;
@@ -243,23 +320,6 @@ int main(int argc, char** argv)
 			return FAILURE;
 		}
 	}
-
-	//check if the semaphore's handle can be closed successfully.
-	if (0 == CloseHandle(h_initiation_semaphore))
-	{
-		printf("SEMAPHORE ERROR - couldn't close semaphore handle. ABORT.\n");
-		return FAILURE;
-	}
-	
-	//check if the output file's handle can be closed successfully.
-	if (0 == CloseHandle(h_output_file))
-	{
-		printf("FILE ERROR - couldn't close file handle. ABORT.\n");
-		return FAILURE;
-	}
-
-
-	printf("\nGreat Success!\n");
 
 	return SUCCESS;
 }

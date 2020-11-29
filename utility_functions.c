@@ -64,7 +64,7 @@ HANDLE create_file_for_write(LPCSTR file_name)
 }
 
 
-/* HANDLE open_file_and_count_lines: 
+/* HANDLE open_file_and_count_lines:
 
 * Parameters:
 * LPCTR file_name - path for a file to create for reading.
@@ -73,25 +73,25 @@ HANDLE create_file_for_write(LPCSTR file_name)
 * Return Value:
 * on success - a handle to a file with GENERIC_READ permission
 * on failure - NULL
- 
+
 * note:
-* this function uses SetFilePointer to reset the file pointer back 
+* this function uses SetFilePointer to reset the file pointer back
 	to the beginning of the file for later use.
 */
-HANDLE open_file_and_count_lines(LPCSTR file_name, int* count)
+HANDLE open_file_and_count_lines(LPCSTR file_name, int* count_lines)
 {
-	*count = MIN_LINES_NUMBER;
+	*count_lines = MIN_LINES_NUMBER;
 
 	HANDLE h_file = create_file_for_read(file_name);
 	if (NULL == h_file)
 		return NULL;
-	
+
 	char buffer = 0;
 	LPDWORD bytes_read = 0;
 	BOOL ret_read = FALSE;
 	do
 	{
-		ret_read = ReadFile(h_file, &buffer, MAX_BUFFER_SIZE, &bytes_read, NULL);
+		ret_read = ReadFile(h_file, &buffer, BUFFER_SIZE_ONE, &bytes_read, NULL);
 		if (FALSE == ret_read)
 		{
 			printf("FILE ERROR - ReadFile failed.\n");
@@ -101,10 +101,9 @@ HANDLE open_file_and_count_lines(LPCSTR file_name, int* count)
 		{
 			break; //reached end of file.
 		}
-
 		if (buffer == '\n')
 		{
-			*count = *count + 1;
+			*count_lines = *count_lines + 1;
 		}
 	} while (TRUE);
 
@@ -124,12 +123,12 @@ HANDLE open_file_and_count_lines(LPCSTR file_name, int* count)
 * int key - key of decryption / encryption.
 * HANDLE h_semaphore - handle to a semaphore that would be used to make all threads start at the same time.
 
-* Return Value: 
+* Return Value:
 * does not return any value.
 
 * note:
-* the field is_last is the only field in this function which differs 
-	between the threads. it represents the thread that operate on the last 
+* the field is_last is the only field in this function which differs
+	between the threads. it represents the thread that operate on the last
 	line in the file.
 */
 void set_identical_data(Data* array_of_thread_data, int number_of_threads, int number_of_lines, char* input_file_name,
@@ -155,7 +154,7 @@ void set_identical_data(Data* array_of_thread_data, int number_of_threads, int n
 }
 
 /* int set_indexes:
-* Description - This function sets the start and end positions in the file for each thread. 
+* Description - This function sets the start and end positions in the file for each thread.
 
 * Parameters:
 * HANDLE h_file - handle to a file with GENERIC_READ permission.
@@ -211,9 +210,9 @@ int get_end_index(HANDLE h_file, int lines_for_thread, int start_index)
 	char buffer = 0;
 	LPDWORD bytes_read = 0;
 	int ret_read = 0;
-	do
+	while (remaining_lines > 0)
 	{
-		ret_read = ReadFile(h_file, &buffer, MAX_BUFFER_SIZE, &bytes_read, NULL);
+		ret_read = ReadFile(h_file, &buffer, BUFFER_SIZE_ONE, &bytes_read, NULL);
 		if (FALSE == ret_read)
 		{
 			printf("FILE ERROR - ReadFile failed.\n");
@@ -227,7 +226,7 @@ int get_end_index(HANDLE h_file, int lines_for_thread, int start_index)
 		count++;
 		if (buffer == '\n')
 			remaining_lines--;
-	} while (remaining_lines > 0);
+	} 
 
 	return count + start_index;
 }
@@ -246,7 +245,7 @@ int get_end_index(HANDLE h_file, int lines_for_thread, int start_index)
 */
 char operate_on_character_help(char lower_end, char ch_read, int key, int base)
 {
-	int temp = ch_read - key - lower_end;
+	char temp = ch_read - key - lower_end;
 	if (temp < 0)
 	{
 		temp += base;
@@ -287,21 +286,21 @@ char operate_on_character(char ch_read, int key, char mode)
 	{
 		return operate_on_character_help('a', ch_read, letter_key, LETTER_BASE);
 	}
-		
+
 	else if ('A' <= ch_read && ch_read <= 'Z')
 	{
 		return operate_on_character_help('A', ch_read, letter_key, LETTER_BASE);
 	}
-		
+
 	else if ('0' <= ch_read && ch_read <= '9')
 	{
 		return operate_on_character_help('0', ch_read, number_key, DECIMAL_BASE);
 	}
-		
+
 	return ch_read;
 }
 
-/* char operate_on_character:
+/* HANDLE create_thread_simple:
 * Description - creates a thread using CreateThread.
 
 * Parameters:
