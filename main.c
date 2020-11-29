@@ -206,7 +206,7 @@ int main(int argc, char** argv)
 	free(array_of_thread_data);
 
 
-	//check if the exit code of the threads can be obtained successfully. if an error was found, report and close all handles.
+	//check if a thread has finished it's work successfully. if an error was found, report and close all handles.
 	for (int i = 0; i < number_of_threads; i++)
 	{
 		if (0 == GetExitCodeThread(p_thread_handles[i], &exit_code))
