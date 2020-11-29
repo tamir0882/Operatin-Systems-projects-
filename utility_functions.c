@@ -274,7 +274,7 @@ int set_key(int key, int base)
 * int base - base of ch_read - either DECIMAL_BASE(10) or LETTER_BASE(26).
 
 * Return Value:
-* returns the decrypted / encrypted characte.
+* returns the decrypted / encrypted character.
 */
 char operate_on_character(char ch_read, int key, char mode)
 {
@@ -301,7 +301,17 @@ char operate_on_character(char ch_read, int key, char mode)
 	return ch_read;
 }
 
+/* char operate_on_character:
+* Description - creates a thread using CreateThread.
 
+* Parameters:
+* LPTHREAD_START_ROUTINE p_start_routine - the start index of the thread in file.
+* LPDWORD p_thread_id - thread's id to use in CreateThread function.
+* Data* thread_data - pointer to an array of struct Data containg each thread's data.
+
+* Return Value:
+* returns a handle to the thread.
+*/
 HANDLE create_thread_simple(LPTHREAD_START_ROUTINE p_start_routine,
 	LPDWORD p_thread_id, Data* thread_data)
 {
