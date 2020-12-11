@@ -1,0 +1,26 @@
+int* Find_Prime_Num(n) {
+  Primes = (int*)malloc(3*sizeof(int));
+  int counter = 0;
+  while ((n % 2) == 0)
+  {
+    n = n/2;
+    Primes[counter] = 2;
+    counter += 1;
+  }
+  int i = 3;
+  while(i <= sqrt(n))
+  {
+    while ((n % i) == 0)
+    {
+      n = n/i;
+      Primes[counter] = i;
+      counter += 1;
+    }
+    i += 2; 
+  }
+  if (n > 2)
+  {
+    Primes[counter] = n;
+  }
+  return Primes;
+}
