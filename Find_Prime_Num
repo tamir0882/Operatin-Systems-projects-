@@ -1,8 +1,24 @@
 int* Find_Prime_Num(n) {
-  Primes = (int*)malloc(3*sizeof(int));
+  int size = 3*sizeof(int);
+  Primes = (int*)malloc(size);
+  if(Primes == NUll)
+  {
+    printf("Memory Error, Couldn't execute malloc. ABORT.");
+    return -1;  
+  }
   int counter = 0;
   while ((n % 2) == 0)
   {
+    if (counter > 2)
+    {
+      size = size * 2;
+      Primes = realloc(Primes,size);
+      if(Primes == NUll)
+      {
+        printf("Memory Error, Couldn't execute realloc. ABORT.");
+        return -1;  
+      }
+    }
     n = n/2;
     Primes[counter] = 2;
     counter += 1;
@@ -12,6 +28,13 @@ int* Find_Prime_Num(n) {
   {
     while ((n % i) == 0)
     {
+      size = size * 2;
+      Primes = realloc(Primes,size);
+      if(Primes == NUll)
+      {
+        printf("Memory Error, Couldn't execute realloc. ABORT.");
+        return -1;  
+      }
       n = n/i;
       Primes[counter] = i;
       counter += 1;
@@ -20,6 +43,12 @@ int* Find_Prime_Num(n) {
   }
   if (n > 2)
   {
+    Primes = realloc(Primes,size+sizeof(int));
+    if(Primes == NUll)
+      {
+        printf("Memory Error, Couldn't execute realloc. ABORT.");
+        return -1;  
+      }
     Primes[counter] = n;
   }
   return Primes;
