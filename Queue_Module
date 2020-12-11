@@ -1,0 +1,82 @@
+int SUCCESS = 0;
+int Failure = -1;
+
+typedef struct Queue 
+{
+	struct Element *front; 
+	struct Element *rear;
+} Queue;
+	
+typedef struct Element 
+{ 
+    int index; 
+    struct Element* next; 
+} Element; 
+
+Queue* InitializeQueue() {
+	Queue* new_q = (Queue*)malloc(sizeof(Queue)); 
+    if (new_q == NULL) {
+		printf("Memory Error - Couldn't initialize queue. ABORT.");
+		return Failure;
+	}
+	new_q->front = NULL;
+	new_q->rear = NULL; 
+    return new_q;
+};	
+
+int Pop(Queue* q)
+{
+	if (q->front == NULL) {
+		printf("Can not Pop. Queue is empty.");
+		return Failure;
+	}
+	
+	Element* temp = q->front;
+	q->front = q->front->next;
+	
+	if (q->front == NULL) {
+        q->rear = NULL;
+	}
+	
+	free(temp);
+	return SUCCESS;
+};
+void Push(Queue* q, Element* new_e) 
+{ 
+    // If queue is empty, new elemnt is front and rear both 
+    if (q->front == NULL) { 
+        q->front = q->rear = new_e; 
+        return; 
+    } 
+  
+    // Add the new node at the end of queue and change rear 
+    q->rear->next = new_e; 
+    q->rear = new_e;
+	return;	
+};
+
+bool Empty(Queue* q)
+{
+	if (q->front == NULL) {
+		return TRUE;
+	}
+	else {
+		return FALSE; 
+	}
+}
+
+int DestoryQueue(Queue* q)
+{
+	int status = SUCCESS; 
+	while(Empty(q) != TRUE)
+	{
+		status = Pop(q);
+		if (status == FAILURE) {
+			return FAILURE;
+		}
+	}
+	free(q);
+	q = NULL;
+	return SUCCESS;
+}
+// We have used a code from https://www.geeksforgeeks.org/queue-linked-list-implementation/
