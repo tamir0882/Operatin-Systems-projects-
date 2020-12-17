@@ -62,7 +62,7 @@ int Pop(Queue* q)
 	}
 
 	q->front = q->front->next;
-
+	
 	if (NULL == q->front)
 	{
 		q->rear = NULL;
@@ -84,7 +84,7 @@ int DestoryQueue(Queue* q)
 }
 
 void Push(Queue* q, Element* p_element)
-{
+{	
 	if (Empty(q)) 
 	{
 		q->front = p_element;
@@ -95,8 +95,19 @@ void Push(Queue* q, Element* p_element)
 	}
 	else
 	{
+		Element* temp = q->front;
+		while (temp != NULL)
+		{
+			if (p_element == temp)
+			{
+				printf("This element is already in the queue, returning.\n");
+				return;
+			}
+			temp = temp->next;
+		}
 		q->rear->next = p_element;
 		q->rear = p_element;
+		q->rear->next = NULL;
 		return;
 	}
 }
@@ -127,7 +138,7 @@ int main()
 	Top(q);
 	Push(q, &elem3);
 	Pop(q);
-	Push(q, &elem5);
+	Push(q, &elem4);
 	Push(q, &elem4);
 	Pop(q);
 	Pop(q);
