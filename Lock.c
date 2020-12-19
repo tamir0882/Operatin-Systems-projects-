@@ -34,6 +34,7 @@ Lock* InitializeLock()
 	if (NULL == lock->h_mutex)
 	{ 
 		printf("InitializeLock: CreateMutexA on h_mutex didn't work");
+		free(lock);
 		return NULL;
 	}
 	
@@ -49,6 +50,7 @@ Lock* InitializeLock()
 		{
 			printf("InitializeLock: Close_Handle couldn't close h_mutex");
 		}
+		free(lock);
 		return NULL;
 	}
 	
@@ -67,7 +69,7 @@ Lock* InitializeLock()
 		{
 			printf("InitializeLock: Close_Handle couldn't close h_room_empty");
 		}
-
+		free(lock);
 		return NULL;
 	}
 	
@@ -336,7 +338,7 @@ void DestroyLock(Lock* lock)
 		}
 		lock->h_turnstile == NULL;
 	}
-
+	free(lock);
 	lock = NULL;
 	return;
 }
