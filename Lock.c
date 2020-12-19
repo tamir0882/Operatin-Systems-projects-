@@ -147,6 +147,7 @@ Close_Handles:
 			printf("read_lock: Close_Handle couldn't close h_turnstile");
 		}
 	}
+	free(lock);
 	return FAILURE;
 
 
@@ -208,6 +209,7 @@ Close_Handles:
 			printf("read_release: Close_Handle couldn't close h_turnstile");
 		}
 	}
+	free(lock);
 	return FAILURE;
 }
 
@@ -256,6 +258,7 @@ Close_Handles:
 			printf("write_lock: Close_Handle couldn't close h_turnstile");
 		}
 	}
+	free(lock);
 	return FAILURE;
 }
 
@@ -303,20 +306,19 @@ Close_Handles:
 			printf("write_release: Close_Handle couldn't close h_turnstile");
 		}
 	}
+	free(lock);
 	return FAILURE;
 }
 
 void DestroyLock(Lock* lock)
 {
-	lock->readers = NULL;
 	if (NULL != lock->h_mutex)
 	{
 		if (0 == CloseHandle(lock->h_mutex))
 		{
 			printf("DestroyLock: Close_Handle couldn't close h_mutex");
-			return NULL;
 		}
-		lock->h_mutex == NULL;
+		lock->h_mutex = NULL;
 	}
 	
 	if (NULL != lock->h_room_empty)
@@ -324,9 +326,8 @@ void DestroyLock(Lock* lock)
 		if (0 == CloseHandle(lock->h_room_empty))
 		{
 			printf("DestroyLock: Close_Handle couldn't close h_room_empty");
-			return NULL;
 		}
-		lock->h_room_empty == NULL;
+		lock->h_room_empty = NULL;
 	}
 	
 	if (NULL != lock->h_turnstile)
@@ -334,9 +335,8 @@ void DestroyLock(Lock* lock)
 		if (0 == CloseHandle(lock->h_turnstile))
 		{
 			printf("DestroyLock: Close_Handle couldn't close h_turnstile");
-			return NULL;
 		}
-		lock->h_turnstile == NULL;
+		lock->h_turnstile = NULL;
 	}
 	free(lock);
 	lock = NULL;
